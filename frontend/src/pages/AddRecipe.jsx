@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { RECIPES_API_URL } from "../api.js";
 
 function AddRecipe() {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ function AddRecipe() {
     };
 
     try {
-      const response = await fetch("http://localhost:5000/api/recipes", {
+      const response = await fetch(RECIPES_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newRecipe),

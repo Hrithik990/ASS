@@ -4,4 +4,9 @@ import react from "@vitejs/plugin-react";
 // This file tells Vite to understand React and JSX
 export default defineConfig({
   plugins: [react()],
+  server: {
+    proxy: {
+      "/api": "http://localhost:5000",
+    },
+  },
 });

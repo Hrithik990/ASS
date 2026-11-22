@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { RECIPES_API_URL } from "../api.js";
 
 function RecipeDetails() {
   // Get the id from the URL /recipe/:id
@@ -14,7 +15,7 @@ function RecipeDetails() {
   useEffect(() => {
     async function loadRecipe() {
       try {
-        const response = await fetch("http://localhost:5000/api/recipes/" + id);
+        const response = await fetch(RECIPES_API_URL + "/" + id);
 
         if (!response.ok) {
           setMessage("Recipe not found.");
@@ -42,7 +43,7 @@ function RecipeDetails() {
     }
 
     try {
-      const response = await fetch("http://localhost:5000/api/recipes/" + id, {
+      const response = await fetch(RECIPES_API_URL + "/" + id, {
         method: "DELETE",
       });
 

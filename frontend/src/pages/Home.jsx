@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import RecipeCard from "../components/RecipeCard.jsx";
+import { RECIPES_API_URL } from "../api.js";
 
 function Home() {
   // State for the list of recipes, the loading message and any error message
@@ -13,7 +14,7 @@ function Home() {
   useEffect(() => {
     async function loadRecipes() {
       try {
-        const response = await fetch("http://localhost:5000/api/recipes");
+        const response = await fetch(RECIPES_API_URL);
 
         // Check that the server answered correctly
         if (!response.ok) {
@@ -43,7 +44,7 @@ function Home() {
     }
 
     try {
-      const response = await fetch("http://localhost:5000/api/recipes/" + recipeId, {
+      const response = await fetch(RECIPES_API_URL + "/" + recipeId, {
         method: "DELETE",
       });
 

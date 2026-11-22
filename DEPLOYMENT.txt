@@ -1,0 +1,154 @@
+RECIPE SHARING PLATFORM - AMAZON LINUX DEPLOYMENT
+================================================
+
+This guide deploys https://github.com/Hrithik990/ASS on an Amazon Linux
+EC2 instance using Nginx for the frontend and API proxy, and systemd for
+the Node.js backend.
+
+SECURITY BEFORE STARTING
+------------------------
+- Rotate the MongoDB Atlas database user's password. The previous password
+  was shared in chat and should no longer be used.
+- In Atlas Network Access, allow only this EC2 instance's outbound public
+  IP address as a /32. Do not allow 0.0.0.0/0.
+- In the EC2 security group, allow inbound HTTP (TCP 80). Do not expose
+  backend port 5000 publicly.
+- Commands below assume the default Amazon Linux account, ec2-user.
+
+1. INSTALL PACKAGES
+-------------------
+
+    sudo dnf update -y
+    sudo dnf install -y nodejs git nginx
+    node --version
+    npm --version
+    sudo systemctl enable --now nginx
+
+The project requires Node.js 18 or newer. If the installed Node.js version
+is older, install a supported Node.js release before continuing.
+
+2. CLONE OR UPDATE THE REPOSITORY
+---------------------------------
+
+    cd /home/ec2-user
+    if [ -d recipe-sharing-platform/.git ]; then
+      cd recipe-sharing-platform
+      git pull --ff-only
+    else
+      git clone https://github.com/Hrithik990/ASS.git recipe-sharing-platform
+      cd recipe-sharing-platform
+    fi
+
+3. CONFIGURE MONGODB CREDENTIALS
+--------------------------------
+
+In Atlas, copy the connection string for your cluster and replace its
+username/password placeholders with the rotated database credentials. Use
+the recipe-sharing database and URL-encode any special characters in the
+password. Keep the connection string private.
+
+Enter the full connection string when prompted; it will not be echoed or
+stored in your shell command history:
+
+    read -rsp "Paste the rotated MongoDB Atlas URI: " MONGO_URI
+    echo
+    printf 'MONGO_URI=%s\nPORT=5000\n' "$MONGO_URI" | sudo tee backend/.env >/dev/null
+    unset MONGO_URI
+    sudo chown ec2-user:ec2-user backend/.env
+    sudo chmod 600 backend/.env
+
+The .env file is ignored by Git. Never commit it or put its contents in this
+guide.
+
+4. BUILD THE FRONTEND
+---------------------
+
+The frontend uses the same-host /api/recipes path. Vite proxies this path to
+the local backend during development, and Nginx proxies it in production.
+No source rewrite is needed during deployment.
+
+    cd /home/ec2-user/recipe-sharing-platform
+    cd frontend
+    npm ci
+    npm run build
+    sudo install -d -o nginx -g nginx /usr/share/nginx/html
+    sudo cp -a dist/. /usr/share/nginx/html/
+    sudo chown -R nginx:nginx /usr/share/nginx/html
+
+5. INSTALL AND START THE BACKEND SERVICE
+----------------------------------------
+
+    cd /home/ec2-user/recipe-sharing-platform/backend
+    npm ci --omit=dev
+
+Create a systemd service:
+
+    sudo tee /etc/systemd/system/recipe-sharing-api.service >/dev/null <<'EOF'
+    [Unit]
+    Description=Recipe Sharing Platform API
+    After=network.target
+
+    [Service]
+    Type=simple
+    User=ec2-user
+    WorkingDirectory=/home/ec2-user/recipe-sharing-platform/backend
+    Environment=NODE_ENV=production
+    EnvironmentFile=/home/ec2-user/recipe-sharing-platform/backend/.env
+    ExecStart=/usr/bin/node server.js
+    Restart=on-failure
+    RestartSec=5
+
+    [Install]
+    WantedBy=multi-user.target
+EOF
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now recipe-sharing-api
+    sudo systemctl status recipe-sharing-api --no-pager
+
+6. CONFIGURE NGINX
+------------------
+
+The API routes are under /api/recipes. Nginx serves the built React app and
+forwards /api/ requests to the backend on localhost port 5000.
+
+    sudo tee /etc/nginx/conf.d/default.conf >/dev/null <<'EOF'
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        server_name _;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location /api/ {
+            proxy_pass http://127.0.0.1:5000;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+    }
+EOF
+
+    sudo nginx -t
+    sudo systemctl enable --now nginx
+    sudo systemctl restart nginx
+
+If another Nginx config already defines a default server on port 80, disable
+that conflicting server config before restarting Nginx.
+
+7. VERIFY
+---------
+
+    curl -i http://127.0.0.1/
+    curl -i http://127.0.0.1/api/recipes
+    sudo journalctl -u recipe-sharing-api -n 50 --no-pager
+    sudo systemctl status nginx --no-pager
+
+Then open http://YOUR_EC2_PUBLIC_IP/ in a browser. The frontend and API use
+the same HTTP host; the MongoDB Atlas credential remains on the server only.
