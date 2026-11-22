@@ -1,0 +1,871 @@
+RECIPE SHARING PLATFORM - STUDY NOTES
+=====================================
+
+These notes explain the whole project in simple language. Every example is
+taken from the real code in this project.
+
+NOTE ABOUT THE STUDY GUIDE: The topic order below follows the topic list in
+the assignment. If your React_Study_Guide.pdf uses different chapter numbers,
+match each topic by its name.
+
+
+=====================================================================
+PART 1: PROJECT INTRODUCTION
+=====================================================================
+
+WHAT IS THE RECIPE SHARING PLATFORM?
+It is a website where people can add cooking recipes, read them, edit them
+and delete them. These four actions plus "list all" are called CRUD
+(Create, Read, Update, Delete).
+
+WHAT PROBLEM DOES IT SOLVE?
+Recipes are usually scattered in notebooks, chats and photos. This website
+keeps them in one place (a database) so they can be browsed and managed.
+For a student, it also teaches how a real full-stack app works.
+
+TECHNOLOGIES USED
+- React (with JSX) and Vite: build the pages the user sees (frontend).
+- React Router DOM: moves between pages without reloading the browser.
+- Fetch API: sends requests from the browser to the backend.
+- Node.js: runs JavaScript outside the browser (on our computer).
+- Express.js: creates the web server and the API routes.
+- Mongoose: lets our JavaScript code talk to MongoDB.
+- MongoDB: the database where recipes are stored permanently.
+
+HOW DOES THE FRONTEND COMMUNICATE WITH THE BACKEND?
+The frontend runs at http://localhost:5173 (Vite) and the backend runs at
+http://localhost:5000 (Express). React uses fetch() to send an HTTP request
+to the backend, for example:
+
+    fetch("http://localhost:5000/api/recipes")
+
+Express receives it in a route, asks MongoDB (through Mongoose) for the data,
+and sends the answer back as JSON. React then stores the JSON in state and
+shows it on the screen.
+
+
+=====================================================================
+PART 2: FOLDER STRUCTURE
+=====================================================================
+
+recipe-sharing-platform/
+  .gitignore         Tells Git to ignore node_modules and .env (secrets and
+                     huge folders should never be uploaded).
+  README.md          Short instructions to install and run the project.
+  study-notes.txt    This file.
+
+  backend/
+    server.js        Starts Express, enables CORS and JSON, connects to
+                     MongoDB and registers the recipe routes.
+    package.json     Lists backend dependencies (express, mongoose, cors,
+                     dotenv) and the "start" script.
+    .env             Real settings: PORT and MONGO_URI. Never share it.
+    .env.example     A copy of .env with placeholders, safe to share.
+    config/
+      db.js          One function, connectDB, that connects to MongoDB.
+    models/
+      Recipe.js      The Mongoose schema and model: describes a recipe.
+    routes/
+      recipeRoutes.js  The five CRUD routes (GET all, GET one, POST, PUT,
+                     DELETE).
+
+  frontend/
+    index.html       The single HTML page. It has <div id="root"> where
+                     React puts the whole app.
+    package.json     Lists frontend dependencies (react, react-dom,
+                     react-router-dom, vite) and scripts like "dev".
+    vite.config.js   Tells Vite to understand React/JSX.
+    src/
+      main.jsx       Entry point. Wraps <App /> in <BrowserRouter> and
+                     imports the CSS.
+      App.jsx        Shows the Navbar and defines all Routes (URLs).
+      styles.css     The one stylesheet for the whole site.
+      components/
+        Navbar.jsx     The top navigation bar (Home, Add Recipe, About).
+        RecipeCard.jsx One recipe card, reused for every recipe.
+      pages/
+        Home.jsx          Lists all recipes. Handles delete from the list.
+        RecipeDetails.jsx Shows one full recipe. Handles delete.
+        AddRecipe.jsx     Form to create a recipe.
+        EditRecipe.jsx    Form to update a recipe.
+        About.jsx         Simple text page.
+
+Components are small pieces reused inside pages. Pages are whole screens
+connected to a URL.
+
+
+=====================================================================
+PART 3: REACT CONCEPTS
+=====================================================================
+
+-------------------------------------------------------------
+3.1 JSX
+-------------------------------------------------------------
+What it means: JSX looks like HTML but is written inside JavaScript.
+Why it is used: It lets us describe what the screen looks like and mix in
+JavaScript values easily.
+Example from this project (RecipeCard.jsx):
+
+    <h3>{recipe.title}</h3>
+    <p>
+      <strong>Author:</strong> {recipe.author}
+    </p>
+
+How it works: Curly braces {} run JavaScript and put the result in the page.
+Rules: use className (not class), every component returns ONE root element,
+and every tag must be closed (<input /> not <input>). In Navbar.jsx the
+root is <nav>. In App.jsx the root is a <div> that holds the Navbar and the
+container.
+
+-------------------------------------------------------------
+3.2 FUNCTIONAL COMPONENTS
+-------------------------------------------------------------
+What it means: A component is a JavaScript function that returns JSX. Its
+name starts with a capital letter.
+Why it is used: To split the page into small reusable parts.
+Example (About.jsx):
+
+    function About() {
+      return (
+        <div className="details-box"> ... </div>
+      );
+    }
+
+How it works: When we write <About /> React calls the function and shows what
+it returns. Lowercase names like <div> are normal HTML; capitalized names
+like <About /> are our components.
+
+-------------------------------------------------------------
+3.3 IMPORT AND EXPORT
+-------------------------------------------------------------
+What it means: import brings code from another file; export default shares
+code from a file. One component per file.
+Why it is used: To keep files small and organized.
+Example:
+
+    // At the bottom of Navbar.jsx
+    export default Navbar;
+
+    // At the top of App.jsx
+    import Navbar from "./components/Navbar.jsx";
+
+How it works: "./" means "starting from this folder". "../" means "go up one
+folder" (Home.jsx uses "../components/RecipeCard.jsx" because pages and
+components are sibling folders).
+
+-------------------------------------------------------------
+3.4 PROPS
+-------------------------------------------------------------
+What it means: Props are values a parent component passes to a child, like
+function arguments.
+Why it is used: So one RecipeCard component can show many different recipes.
+Example: Home.jsx passes props:
+
+    <RecipeCard key={recipe._id} recipe={recipe} onDelete={handleDelete} />
+
+RecipeCard.jsx receives them by destructuring:
+
+    function RecipeCard({ recipe, onDelete }) { ... }
+
+How it works: Strings can be written with quotes (to="/add"). Anything that
+is not a string (an object, a function) goes in curly braces, like
+recipe={recipe}. Data flows one way: parent to child.
+
+-------------------------------------------------------------
+3.5 ARRAYS AND OBJECTS
+-------------------------------------------------------------
+What it means: An object holds named values; an array holds a list.
+Why it is used: One recipe is an object; many recipes are an array of
+objects.
+Example (what the backend sends):
+
+    [
+      { _id: "abc1", title: "Pancakes", author: "Sam", ingredients: ["Flour", "Milk"] },
+      { _id: "abc2", title: "Soup", author: "Ana", ingredients: ["Water", "Salt"] }
+    ]
+
+How it works: recipe.title reads one value from an object. The ingredients
+inside each recipe is itself an array of strings.
+
+-------------------------------------------------------------
+3.6 .map()
+-------------------------------------------------------------
+What it means: .map() goes through an array and creates a new item for each
+element.
+Why it is used: To show a card for every recipe without writing each by hand.
+Example (Home.jsx):
+
+    {recipes.map((recipe) => (
+      <RecipeCard key={recipe._id} recipe={recipe} onDelete={handleDelete} />
+    ))}
+
+How it works: For each recipe a RecipeCard is created. The key prop must be
+a unique value (here the MongoDB _id) so React can track each card. In
+RecipeDetails.jsx, ingredients have no _id, so we use the index as the key.
+
+-------------------------------------------------------------
+3.7 useState
+-------------------------------------------------------------
+What it means: useState creates a value that React remembers. When it
+changes, the screen updates.
+Why it is used: For data that changes: recipes, form fields, messages.
+Example (Home.jsx):
+
+    const [recipes, setRecipes] = useState([]);
+
+How it works: recipes is the current value. setRecipes(newValue) changes it
+and makes React redraw the component. Never change the variable directly
+(recipes = [] is wrong). Each form field has its own useState, for example
+const [title, setTitle] = useState("").
+
+-------------------------------------------------------------
+3.8 EVENT HANDLING
+-------------------------------------------------------------
+What it means: Running code when the user does something.
+Why it is used: Buttons, typing and form submit all need code to run.
+Example (RecipeCard.jsx):
+
+    <button className="btn btn-red" onClick={() => onDelete(recipe._id)}>
+      Delete
+    </button>
+
+How it works: onClick, onChange and onSubmit receive a function. We write
+() => onDelete(recipe._id) so the function runs on click, not while the page
+is drawn. (Writing onClick={onDelete(recipe._id)} would run it immediately,
+which is a common bug.)
+
+-------------------------------------------------------------
+3.9 CONTROLLED FORMS
+-------------------------------------------------------------
+What it means: The input's value always comes from React state.
+Why it is used: React always knows what the user typed.
+Example (AddRecipe.jsx):
+
+    <input
+      id="title"
+      type="text"
+      value={title}
+      onChange={(e) => setTitle(e.target.value)}
+      required
+    />
+
+How it works: value={title} shows the state. When the user types, onChange
+runs, e.target.value is the new text, and setTitle saves it. React redraws
+with the new value. On submit, handleSubmit calls e.preventDefault() so the
+browser does not reload the page. After a successful save, each setter is
+called with "" to reset the form.
+
+-------------------------------------------------------------
+3.10 REACT ROUTER
+-------------------------------------------------------------
+What it means: Different URLs show different pages, without reloading.
+Why it is used: A website needs several pages (home, add, details...).
+Example:
+
+    // main.jsx
+    <BrowserRouter> <App /> </BrowserRouter>
+
+    // App.jsx
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/add" element={<AddRecipe />} />
+      <Route path="/recipe/:id" element={<RecipeDetails />} />
+      <Route path="/edit/:id" element={<EditRecipe />} />
+      <Route path="/about" element={<About />} />
+    </Routes>
+
+How it works: BrowserRouter turns routing on. Routes checks the current URL
+and shows the first matching Route's element. ":id" is a changing part of
+the URL, for example /recipe/65f0c2...
+
+-------------------------------------------------------------
+3.11 NAVLINK
+-------------------------------------------------------------
+What it means: A link that changes the page without a full reload.
+Why it is used: Faster than <a href>, and it knows which link is current.
+Example (Navbar.jsx):
+
+    <NavLink to="/add">Add Recipe</NavLink>
+
+How it works: NavLink adds the CSS class "active" to the link of the current
+page. In styles.css, ".nav-links a.active" highlights it. (In Home.jsx we use
+the simpler Link component for the "Add New Recipe" button.)
+
+-------------------------------------------------------------
+3.12 useNavigate
+-------------------------------------------------------------
+What it means: A function to change the page from JavaScript code.
+Why it is used: To move after something happens, such as saving a recipe.
+Example (AddRecipe.jsx):
+
+    const navigate = useNavigate();
+    ...
+    navigate("/");
+
+How it works: After the POST succeeds, navigate("/") sends the user to the
+homepage. EditRecipe.jsx uses navigate("/recipe/" + id) to go to the details
+page. RecipeCard.jsx uses it for the View and Edit buttons.
+
+-------------------------------------------------------------
+3.13 useParams
+-------------------------------------------------------------
+What it means: Reads the changing part of the URL.
+Why it is used: The details page must know WHICH recipe to show.
+Example (RecipeDetails.jsx):
+
+    const { id } = useParams();
+
+How it works: For the URL /recipe/65f0c2, id is "65f0c2". The name "id"
+matches ":id" in the Route path. We then use it in the fetch URL.
+
+-------------------------------------------------------------
+3.14 CONDITIONAL RENDERING
+-------------------------------------------------------------
+What it means: Showing different things depending on a condition.
+Why it is used: Show "Loading...", an empty message, or the recipes.
+Example (Home.jsx):
+
+    {loading ? (
+      <p>Loading recipes...</p>
+    ) : recipes.length === 0 ? (
+      <p>No recipes yet. Add your first recipe!</p>
+    ) : (
+      <div className="recipe-grid"> ... </div>
+    )}
+
+How it works: condition ? ifTrue : ifFalse. Here two ternaries are chained:
+first check loading, then check whether the list is empty. For the message we
+use {message ? <p>...</p> : null}, where null shows nothing.
+
+-------------------------------------------------------------
+3.15 useEffect  (NOT YET COVERED IN THE STUDY GUIDE - see Part 8)
+-------------------------------------------------------------
+What it means: Code that runs after the component appears on screen.
+Why it is used: To load data from the backend.
+Example (Home.jsx):
+
+    useEffect(() => {
+      async function loadRecipes() { ... }
+      loadRecipes();
+    }, []);
+
+How it works: See Part 8 for the full explanation.
+
+-------------------------------------------------------------
+3.16 FETCH API
+-------------------------------------------------------------
+What it means: A built-in browser function that sends HTTP requests.
+Why it is used: To talk to our Express backend.
+Examples:
+
+    // GET - read
+    const response = await fetch("http://localhost:5000/api/recipes");
+    const data = await response.json();
+
+    // POST - create (AddRecipe.jsx)
+    await fetch("http://localhost:5000/api/recipes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newRecipe),
+    });
+
+    // PUT - update (EditRecipe.jsx): same as POST but method "PUT" and the
+    // URL ends with "/" + id
+
+    // DELETE - remove (Home.jsx and RecipeDetails.jsx)
+    await fetch("http://localhost:5000/api/recipes/" + recipeId, {
+      method: "DELETE",
+    });
+
+How it works: fetch returns a response. response.ok is true when the status
+is 200-299. response.json() reads the JSON body. JSON.stringify turns a
+JavaScript object into JSON text for the body. The "Content-Type" header
+tells Express the body is JSON.
+
+
+=====================================================================
+PART 4: BACKEND CONCEPTS
+=====================================================================
+
+NODE.JS
+Runs JavaScript on a computer instead of inside a browser. It lets us write
+the server in JavaScript. We start it with "node server.js" (npm start).
+
+EXPRESS.JS
+A library for Node that makes building web servers easy. In server.js,
+const app = express() creates the server and app.listen(PORT) starts it.
+
+WHAT IS AN API?
+An Application Programming Interface is a set of URLs that programs can call
+to get or change data. Our API starts with /api/recipes. The frontend is
+the client; the backend is the server.
+
+WHAT IS A ROUTE?
+A route connects an HTTP method and a URL to a function. Example:
+
+    router.get("/", async (req, res) => { ... });
+
+req is the request (what arrived), res is the response (what we send back).
+server.js says app.use("/api/recipes", recipeRoutes), so router.get("/")
+means GET /api/recipes and router.get("/:id") means GET /api/recipes/:id.
+
+HTTP METHODS
+- GET: read data.
+- POST: create new data.
+- PUT: update existing data.
+- DELETE: remove data.
+Status codes we use: 200 OK, 201 Created, 400 Bad request (invalid data or
+id), 404 Not found, 500 Server error.
+
+MONGOOSE
+A library that lets Node talk to MongoDB using JavaScript objects. It gives
+us easy functions: find(), findById(), save(), findByIdAndUpdate(),
+findByIdAndDelete().
+
+MONGODB SCHEMA
+A schema describes what fields a document has and their types and rules.
+In Recipe.js, title is { type: String, required: true }, so saving a recipe
+without a title fails with a validation error.
+
+JSON
+JavaScript Object Notation: a text format for data, like
+{"title":"Pancakes","servings":4}. It is how the frontend and backend
+exchange data. app.use(express.json()) lets Express read JSON request
+bodies into req.body.
+
+CORS
+Cross-Origin Resource Sharing. Browsers block a page at localhost:5173 from
+calling a server at localhost:5000 (different port = different origin)
+unless the server allows it. app.use(cors()) gives that permission.
+
+ENVIRONMENT VARIABLES
+Settings stored outside the code, in the .env file, such as MONGO_URI and
+PORT. dotenv loads them with require("dotenv").config(), and we read them
+with process.env.MONGO_URI. This keeps passwords out of the code and out of
+Git.
+
+
+=====================================================================
+PART 5: DATABASE
+=====================================================================
+
+HOW MONGODB STORES RECIPES
+MongoDB stores data as documents (like JavaScript objects) inside
+collections (like folders). Our recipes live in the "recipes" collection
+(Mongoose makes the name from the model "Recipe"). One document:
+
+    {
+      "_id": "65f0c2a1b2c3d4e5f6a7b8c9",
+      "title": "Pancakes",
+      "author": "Sam",
+      "category": "Breakfast",
+      "description": "Fluffy pancakes",
+      "ingredients": ["2 cups flour", "1 cup milk", "2 eggs"],
+      "instructions": "Mix. Cook on a pan.",
+      "preparationTime": 10,
+      "cookingTime": 15,
+      "servings": 4,
+      "createdAt": "2026-11-19T10:00:00.000Z"
+    }
+
+WHAT THE RECIPE MODEL DOES
+Recipe.js defines the schema and creates the model with
+mongoose.model("Recipe", recipeSchema). The model is the tool the routes use
+to read and write recipes, and it checks the data (required title and
+author, minimum values, createdAt default of the current date).
+
+WHAT _id MEANS
+Every document gets a unique _id made automatically by MongoDB. We use it to
+find one recipe (/api/recipes/:id), as the React key, and in links like
+"/recipe/" + recipe._id.
+
+HOW MONGOOSE TALKS TO MONGODB
+connectDB() in config/db.js calls mongoose.connect(process.env.MONGO_URI).
+After that, calls like Recipe.find() are turned into MongoDB commands, and
+the results come back as JavaScript objects.
+
+WHY INGREDIENTS ARE AN ARRAY OF STRINGS
+A recipe has many ingredients. An array keeps them as separate items, so we
+can show each as a <li>. In the form the user types one ingredient per line
+and we convert with split("\n"), so the form stays simple.
+
+
+=====================================================================
+PART 6: COMPLETE DATA FLOW (ADDING A RECIPE)
+=====================================================================
+
+Frontend form -> React state -> fetch() -> Express route -> Mongoose model
+-> MongoDB -> Express response -> React state -> Updated UI
+
+1. Frontend form: The user fills in AddRecipe.jsx and clicks Save Recipe.
+2. React state: Each keystroke ran onChange and saved the text in state
+   (title, author, ingredientsText ...).
+3. handleSubmit runs: e.preventDefault() stops the page reload. The
+   ingredients text is converted to an array. A newRecipe object is built.
+4. fetch(): A POST request with the recipe as JSON goes to
+   http://localhost:5000/api/recipes.
+5. Express route: server.js sends /api/recipes requests to recipeRoutes.js.
+   router.post("/") runs.
+6. Mongoose model: new Recipe(req.body) builds a document, and save()
+   validates it.
+7. MongoDB: The document is stored in the recipes collection with a new _id
+   and createdAt.
+8. Express response: res.status(201).json(savedRecipe) sends the saved
+   recipe back. If validation fails, it sends status 400 with a message.
+9. React state: response.ok is checked. On success the message state is set
+   and the form state variables are reset.
+10. Updated UI: navigate("/") opens Home.jsx. Its useEffect loads the recipes
+    again and the new recipe appears as a card.
+
+The same idea for the other operations:
+- READING: Home.jsx useEffect -> fetch GET -> router.get("/") ->
+  Recipe.find() -> JSON array -> setRecipes -> .map() shows cards.
+- EDITING: EditRecipe.jsx loads one recipe (GET by id) into the form state,
+  then sends PUT -> findByIdAndUpdate -> updated recipe -> navigate to the
+  details page, which loads the fresh data.
+- DELETING: Delete button -> window.confirm -> fetch DELETE ->
+  findByIdAndDelete -> success message -> the frontend removes the recipe
+  from the recipes state with filter(), so the card disappears.
+
+
+=====================================================================
+PART 7: CRUD REQUEST AND RESPONSE CYCLE
+=====================================================================
+
+-------------------------------------------------------------
+1. CREATE - POST /api/recipes
+-------------------------------------------------------------
+User does:        Fills in the Add Recipe form and clicks Save Recipe.
+Frontend sends:   POST request, header Content-Type: application/json, body
+                  = JSON of the new recipe (title, author, category,
+                  description, ingredients array, instructions, times,
+                  servings).
+Backend route:    router.post("/") in recipeRoutes.js.
+In MongoDB:       A new document is inserted into "recipes".
+Response:         Status 201 and the saved recipe as JSON. Status 400 and
+                  { message } if validation fails.
+Frontend updates: Shows a success message, resets the form, navigates to
+                  the homepage.
+
+-------------------------------------------------------------
+2. READ ALL - GET /api/recipes
+-------------------------------------------------------------
+User does:        Opens the homepage.
+Frontend sends:   GET request, no body (Home.jsx useEffect).
+Backend route:    router.get("/").
+In MongoDB:       Recipe.find().sort({ createdAt: -1 }) reads all recipes,
+                  newest first.
+Response:         Status 200 and a JSON array.
+Frontend updates: setRecipes(data), setLoading(false), cards are shown with
+                  .map(). If the array is empty, the "No recipes yet"
+                  message is shown.
+
+-------------------------------------------------------------
+3. READ ONE - GET /api/recipes/:id
+-------------------------------------------------------------
+User does:        Clicks View Recipe on a card.
+Frontend sends:   GET /api/recipes/<id> (RecipeDetails.jsx; the id comes
+                  from useParams). EditRecipe.jsx uses the same request to
+                  fill the form.
+Backend route:    router.get("/:id").
+In MongoDB:       Recipe.findById(req.params.id) reads one document.
+Response:         200 and the recipe JSON; 404 if not found; 400 if the id
+                  is not a valid MongoDB id.
+Frontend updates: setRecipe(data) and the full recipe is displayed.
+
+-------------------------------------------------------------
+4. UPDATE - PUT /api/recipes/:id
+-------------------------------------------------------------
+User does:        Clicks Edit, changes the form, clicks Update Recipe.
+Frontend sends:   PUT /api/recipes/<id> with the full updated recipe as
+                  JSON.
+Backend route:    router.put("/:id").
+In MongoDB:       findByIdAndUpdate changes the document. { new: true }
+                  returns the updated version and runValidators: true
+                  checks the rules again.
+Response:         200 and the updated recipe; 404 if not found; 400 for
+                  invalid data.
+Frontend updates: navigate("/recipe/" + id), and the details page loads and
+                  shows the new data.
+
+-------------------------------------------------------------
+5. DELETE - DELETE /api/recipes/:id
+-------------------------------------------------------------
+User does:        Clicks Delete (card or details page) and confirms in the
+                  window.confirm box.
+Frontend sends:   DELETE /api/recipes/<id>, no body.
+Backend route:    router.delete("/:id").
+In MongoDB:       findByIdAndDelete removes the document.
+Response:         200 and { message: "Recipe deleted successfully" }; 404 if
+                  not found.
+Frontend updates: On the homepage the recipe is removed from the recipes
+                  state with filter(). On the details page navigate("/")
+                  returns to the homepage.
+
+
+=====================================================================
+PART 8: useEffect AND FETCH
+=====================================================================
+
+(The study guide marks useEffect as not yet covered, so here is the full
+explanation.)
+
+WHY useEffect IS NEEDED
+A component function should only describe what the screen looks like.
+Loading data from a server is a "side effect": it happens outside React.
+useEffect is the place for side effects. Without it, fetch would run every
+time the component redraws and cause an endless loop of requests and
+updates.
+
+WHEN IT RUNS
+React draws the component first, then runs the function inside useEffect.
+How often it runs depends on the second argument, the dependency array.
+
+WHAT AN EMPTY DEPENDENCY ARRAY [] MEANS
+In Home.jsx:
+
+    useEffect(() => {
+      ...
+    }, []);
+
+[] means "no values to watch", so the code runs only once, right after the
+first draw. In RecipeDetails.jsx and EditRecipe.jsx we write [id], which
+means "run once, and run again if id changes".
+
+HOW FETCH GETS INFORMATION
+    const response = await fetch("http://localhost:5000/api/recipes");
+    const data = await response.json();
+    setRecipes(data);
+1) fetch sends the request and waits for the server.
+2) response.json() reads the JSON text and turns it into JavaScript.
+3) setRecipes(data) saves it in state, so React redraws with the recipes.
+
+WHY ASYNCHRONOUS REQUESTS ARE USED
+A request over the network takes time. If the code waited and froze, the
+whole page would be stuck. async/await lets JavaScript start the request,
+keep the page responsive, and continue the function when the answer
+arrives. That is also why we have a loading state: it shows "Loading
+recipes..." until the data comes back.
+
+Why loadRecipes is an inner function: the function passed to useEffect
+cannot be async itself, so we define an async function inside and call it.
+
+
+=====================================================================
+PART 9: RUNNING THE PROJECT
+=====================================================================
+
+REQUIREMENTS
+- Node.js (version 18 or newer): https://nodejs.org
+- MongoDB: either MongoDB Atlas (free cloud) or a local MongoDB install.
+
+STEP 1: CONFIGURE MONGODB
+
+Option A - Local MongoDB (Windows)
+1. Install MongoDB Community Server from mongodb.com.
+2. Make sure the MongoDB service is running (Windows Services, "MongoDB").
+3. Your connection string is:
+   mongodb://127.0.0.1:27017/recipe-sharing
+
+Option B - MongoDB Atlas
+1. Create a free account and a free cluster on mongodb.com/atlas.
+2. In "Database Access" create a database user with a username and password.
+3. In "Network Access" add your IP address (or 0.0.0.0/0 for class
+   practice).
+4. Click Connect -> Drivers and copy the connection string. It looks like:
+   mongodb+srv://USERNAME:PASSWORD@cluster0.xxxxx.mongodb.net/recipe-sharing?retryWrites=true&w=majority
+5. Replace USERNAME and PASSWORD. If the password has special characters
+   such as @ or #, URL-encode them.
+
+STEP 2: CREATE THE .env FILE
+Open a terminal (Command Prompt or PowerShell) in the project folder:
+
+    cd recipe-sharing-platform\backend
+    copy .env.example .env
+
+Open .env in an editor and set MONGO_URI to your connection string:
+
+    PORT=5000
+    MONGO_URI=mongodb://127.0.0.1:27017/recipe-sharing
+
+(The project already includes a .env using local MongoDB, so with a local
+install you can skip editing it.)
+
+STEP 3: INSTALL AND START THE BACKEND
+
+    cd recipe-sharing-platform\backend
+    npm install
+    npm start
+
+You should see:
+    Server is running on port 5000
+    MongoDB connected
+Leave this terminal open.
+
+STEP 4: INSTALL AND START THE FRONTEND
+Open a SECOND terminal:
+
+    cd recipe-sharing-platform\frontend
+    npm install
+    npm run dev
+
+Vite prints a link such as http://localhost:5173. Open it in the browser.
+
+STEP 5: TEST ALL CRUD OPERATIONS
+1. CREATE: Click Add Recipe, fill in the form (put each ingredient on its
+   own line), click Save Recipe. You return to the homepage and see the new
+   card.
+2. READ ALL: The homepage shows every recipe from the database. Refresh the
+   page; the recipes are still there because they are in MongoDB.
+3. READ ONE: Click View Recipe. The details page shows ingredients as a
+   list, the instructions, times, servings and the date.
+4. UPDATE: Click Edit, change the title or an ingredient, click Update
+   Recipe. The details page shows the change.
+5. DELETE: Click Delete, press OK in the confirmation box. The recipe
+   disappears. Refresh to confirm it is gone.
+6. Optional API test in the browser: open http://localhost:5000/api/recipes
+   to see the raw JSON.
+7. Optional: use MongoDB Compass to look at the "recipes" collection.
+
+
+=====================================================================
+PART 10: COMMON MISTAKES
+=====================================================================
+
+1. FORGETTING TO IMPORT COMPONENTS
+Cause: Using <RecipeCard /> without an import line.
+Error: "RecipeCard is not defined".
+Fix: Add import RecipeCard from "../components/RecipeCard.jsx"; at the top.
+
+2. INCORRECT COMPONENT CAPITALIZATION
+Cause: Writing function recipeCard() or <recipeCard />. React treats
+lowercase names as HTML tags.
+Fix: Always capitalize: RecipeCard.
+
+3. USING class INSTEAD OF className
+Cause: class is a reserved word in JavaScript.
+Fix: Use className="recipe-card".
+
+4. FORGETTING THE key PROP IN .map()
+Cause: .map() without key.
+Error: Warning "Each child in a list should have a unique key".
+Fix: key={recipe._id}.
+
+5. INCORRECTLY USING PROPS
+Cause: Writing function RecipeCard(recipe) instead of ({ recipe }), or
+passing the wrong name.
+Fix: Prop names must match on both sides: recipe={recipe} is received as
+{ recipe }. Non-string values need curly braces.
+
+6. FORGETTING e.preventDefault()
+Cause: The browser reloads the page on form submit, so the request is lost
+and the form clears.
+Fix: First line of handleSubmit: e.preventDefault();
+
+7. NOT UPDATING CONTROLLED INPUTS
+Cause: value={title} without onChange.
+Result: The input cannot be typed in (it is stuck).
+Fix: Always add onChange={(e) => setTitle(e.target.value)}.
+
+8. INCORRECT ROUTE PATHS
+Cause: A link goes to "/recipes/1" but the Route is "/recipe/:id", or a
+missing slash.
+Result: Blank page.
+Fix: Make Link/navigate paths match the Route paths in App.jsx exactly.
+
+9. FORGETTING TO USE useParams()
+Cause: Trying to use id without reading it.
+Fix: const { id } = useParams(); and the name must match ":id" in the Route.
+
+10. INCORRECTLY USING useState
+Causes: Changing state directly (recipes = []), calling hooks inside an if
+or loop, or forgetting that state updates after the render.
+Fix: Always use the setter, call useState at the top of the component.
+Also: number inputs give text; convert with Number().
+
+11. FORGETTING TO CHECK FETCH RESPONSES
+Cause: fetch does NOT throw an error for 404 or 500; it only throws if the
+network fails.
+Fix: Check if (!response.ok) before using the data, and use try/catch for
+network errors.
+
+12. BACKEND AND FRONTEND PORT MISMATCHES
+Cause: Backend runs on 5000 but the frontend fetches another port (or PORT
+in .env was changed).
+Result: "Could not connect to the server".
+Fix: Use the same port in .env and in every fetch URL (5000).
+
+13. INCORRECT MONGODB CONNECTION STRINGS
+Cause: Wrong password, a placeholder like <password> left in, special
+characters not URL-encoded, Atlas IP not allowed, local MongoDB not
+running.
+Result: "MongoDB connection failed".
+Fix: Check the string in .env, the Atlas user and Network Access, and that
+the local service runs. Restart the backend after changing .env.
+
+14. FORGETTING CORS
+Cause: Not using app.use(cors()).
+Error in browser console: "blocked by CORS policy".
+Fix: Install cors, and add app.use(cors()) before the routes.
+
+15. INCORRECT MONGODB IDs
+Cause: Using an id that is not 24 hex characters, or a made-up id.
+Result: The backend replies 400 "Invalid recipe id" or 404 "Recipe not
+found".
+Fix: Use the real _id that MongoDB created (from the card's recipe._id).
+
+16. FORGETTING TO CONVERT INGREDIENTS TEXT INTO AN ARRAY
+Cause: Sending the textarea text (a string) instead of an array.
+Result: Mongoose puts the whole text in one ingredient, so the list shows
+one long line.
+Fix: ingredientsText.split("\n") and remove empty lines. When editing, use
+recipe.ingredients.join("\n") to fill the textarea.
+
+EXTRA MISTAKES
+- Forgetting to run "npm install" in BOTH folders.
+- Forgetting to restart the backend after editing the backend code or .env.
+- Forgetting express.json(), which makes req.body undefined.
+
+
+=====================================================================
+PART 11: TRY IT YOURSELF
+=====================================================================
+
+Try these small exercises. Solutions are not provided, but hints tell you
+where to look.
+
+1. Add a "difficulty" field (Easy, Medium, Hard) to every recipe.
+   Hint: Change Recipe.js, both forms and RecipeDetails.jsx.
+
+2. Display the total number of recipes on the homepage.
+   Hint: recipes.length.
+
+3. Add a search box that filters recipes by title.
+   Hint: a new useState for the search text and the array filter() before
+   map(). Compare with toLowerCase() and includes().
+
+4. Add a dropdown to filter recipes by category.
+   Hint: a <select> element with its own state.
+
+5. Add a button to sort recipes by preparation time.
+   Hint: sort() on a COPY of the array ([...recipes]).
+
+6. Make the empty message friendlier (for example add a button to the Add
+   Recipe page).
+   Hint: look at the conditional rendering in Home.jsx.
+
+7. Add a "rating" field (1 to 5) to recipes.
+   Hint: Number type with min and max in the schema, and a number input.
+
+8. Add a "dietaryPreference" field (Vegetarian, Vegan, None).
+   Hint: String in the schema and a <select> in the forms.
+
+9. Show a "Recipe saved!" message for 2 seconds before navigating home.
+   Hint: setTimeout.
+
+10. Add a required-field star (*) to the Title and Author labels.
+    Hint: edit the <label> text in both forms.
+
+11. Show the cooking and preparation time added together on the details
+    page.
+    Hint: preparationTime + cookingTime.
