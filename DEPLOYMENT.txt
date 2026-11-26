@@ -5,6 +5,23 @@ This guide deploys https://github.com/Hrithik990/ASS on an Amazon Linux
 EC2 instance using Nginx for the frontend and API proxy, and systemd for
 the Node.js backend.
 
+VERCEL SERVICES DEPLOYMENT
+==========================
+
+The repository root `vercel.json` defines two services:
+
+- `frontend` builds the Vite app and serves all public paths other than `/api/*`.
+- `backend` runs the Express API and receives public requests under `/api/*`.
+
+Set `MONGO_URI` in the Vercel project's environment variables for every
+deployment environment that needs database access. Do not commit the value.
+The frontend calls the API through the same-origin `/api/recipes` path, which
+the top-level rewrite routes to `backend`; no service binding is needed because
+the frontend makes a browser request through this public route.
+
+For local development with the Vercel service routing, use `vercel dev` from
+the repository root. Configure `MONGO_URI` for that local environment as well.
+
 SECURITY BEFORE STARTING
 ------------------------
 - Rotate the MongoDB Atlas database user's password. The previous password
