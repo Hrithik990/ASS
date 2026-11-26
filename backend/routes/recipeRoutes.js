@@ -11,6 +11,7 @@ router.get("/", async (req, res) => {
     const recipes = await Recipe.find().sort({ createdAt: -1 });
     res.status(200).json(recipes);
   } catch (error) {
+    console.error("Could not get recipes:", error);
     res.status(500).json({ message: "Could not get recipes" });
   }
 });

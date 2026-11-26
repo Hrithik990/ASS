@@ -9,9 +9,6 @@ const recipeRoutes = require("./routes/recipeRoutes");
 // Create the Express application
 const app = express();
 
-// Connect to MongoDB
-connectDB();
-
 // Allow the React frontend (a different port) to talk to this server
 app.use(cors());
 
@@ -29,6 +26,17 @@ app.get("/", (req, res) => {
 // Use the port from .env, or 5000 if none is given
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log("Server is running on port " + PORT);
-});
+async function startServer() {
+  try {
+    await connectDB();
+
+    app.listen(PORT, () => {
+      console.log("Server is running on port " + PORT);
+    });
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
+  }
+}
+
+startServer();
